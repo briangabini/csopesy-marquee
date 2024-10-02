@@ -1,59 +1,98 @@
 #include <iostream>
-#include <conio.h>
-// #include <Windows.h>
+#include <string>
+#include <chrono>
+#include <thread>
 #include <Windows.h>
+#include <conio.h>
+#include <vector>
 
-// Interface for Keyboard Events
-class IKeyboardEvent
+// Function to clear the console below the header
+void ClearConsoleBelowHeader(int headerLines)
 {
-public:
-	virtual void OnKeyDown(char key) = 0;
-	virtual void OnKeyUp(char key) = 0;
-};
+    COORD topLeft = { 0, static_cast<SHORT>(headerLines) };
+    HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO screen;
+    DWORD written;
 
-// Implementation of IKeyboardEvent
-class KeyboardEventHandler : public IKeyboardEvent
+    GetConsoleScreenBufferInfo(console, &screen);
+    FillConsoleOutputCharacter(
+        console, ' ', screen.dwSize.X * (screen.dwSize.Y - headerLines - 1), topLeft, &written
+    );
+    SetConsoleCursorPosition(console, topLeft);
+}
+
+std::vector<char> inputs{};
+
+// Function to display the diagonal bouncing marquee
+void DisplayDiagonalMarquee(const std::string& message, int delay, int headerLines)
 {
-public:
-	void OnKeyDown(char key) override
-	{
-		std::cout << "Key Down: " << key << std::endl;
-	}
+    HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
 
-	void OnKeyUp(char key) override
-	{
-		std::cout << "Key Up: " << key << std::endl;
-	}
-};
+    GetConsoleScreenBufferInfo(console, &csbi);
+    const int consoleWidth = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    const int consoleHeight = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
 
-// Keyboard Polling
-void PollKeyboard(IKeyboardEvent& keyboardEvent)
-{
-	while (true)
-	{
-		if (_kbhit())
-		{
-			char key = _getch();
+    int x = 0, y = headerLines;
+    int dx = 1, dy = 1;
 
-			// Check if it's a key down or key up event
-			if (GetAsyncKeyState(key) & 0x8000)
-			{
-				keyboardEvent.OnKeyDown(key);
-			} else
-			{
-				keyboardEvent.OnKeyUp(key);
-			}
+    while (true)
+    {
+        ClearConsoleBelowHeader(headerLines);
+        COORD pos = { static_cast<SHORT>(x), static_cast<SHORT>(y) };
+        SetConsoleCursorPosition(console, pos);
+        std::cout << message << std::flush;
 
-			// Other program logic can continue here
+        std::this_thread::sleep_for(std::chrono::milliseconds(delay));
+
+        x += dx;
+        y += dy;
+
+        if (x <= 0 || x + message.length() >= consoleWidth)
+        {
+            dx = -dx;
+        }
+        if (y <= headerLines || y >= consoleHeight - 2) // Leave space for footer
+        {
+            dy = -dy;
+        }
+
+        // Display footer
+        COORD footerPos = { 0, static_cast<SHORT>(consoleHeight - 1) };
+        SetConsoleCursorPosition(console, footerPos);
+        std::cout << "Enter a command for MARQUEE_CONSOLE: ";
+
+        for (char input : inputs)
+        {
+			std::cout << input;
+        }
+
+        // Check for user input
+        if (_kbhit())
+        {
+            char key = _getch();
+            inputs.push_back(key);
+			std::cout << key;
 		}
-	}
+    }
+}
+
+// Function to display the header
+void DisplayHeader()
+{
+    std::cout << "*****************************************\n";
+    std::cout << "* Displaying a marquee console!         *\n";
+    std::cout << "*****************************************\n";
 }
 
 int main()
 {
-	KeyboardEventHandler keyboardHandler;
+    DisplayHeader();
+    std::string message = "Hello world in marquee!";
+    int delay = 100;            // Delay in milliseconds
+    int headerLines = 3;        // Number of lines in the header
 
-	// Start keyboard polling
-	PollKeyboard(keyboardHandler);
-	return 0;
+    DisplayDiagonalMarquee(message, delay, headerLines);
+
+    return 0;
 }
