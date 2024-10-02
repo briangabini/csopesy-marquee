@@ -62,7 +62,7 @@ void DisplayDiagonalMarquee(const std::string& message, int delay, int headerLin
         SetConsoleCursorPosition(console, footerPos);
         std::cout << "Enter a command for MARQUEE_CONSOLE: ";
 
-        for (char input : inputs)
+        for (const auto& input : inputs)
         {
 			std::cout << input;
         }
