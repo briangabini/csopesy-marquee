@@ -66,15 +66,40 @@ private:
 
     void captureInputs()
     {
+        HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        GetConsoleScreenBufferInfo(console, &csbi);
+        const int consoleHeight = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+
+        DisplayFooter(console, consoleHeight);
+
         while (isRunning)
         {
             if (_kbhit())
             {
                 char key = _getch();
-                std::lock_guard<std::mutex> lock(inputMutex);
-                inputs.push_back(key);
+                {
+                    std::lock_guard<std::mutex> lock(inputMutex);
+                    inputs.push_back(key);
+                }
+                DisplayFooter(console, consoleHeight);
             }
+
         }
+    }
+
+    void DisplayFooter(HANDLE console, int consoleHeight)
+    {
+        COORD footerPos = { 0, static_cast<SHORT>(consoleHeight - 1) };
+        SetConsoleCursorPosition(console, footerPos);
+        std::cout << "Enter a command for MARQUEE_CONSOLE: ";
+
+        std::lock_guard<std::mutex> lock(inputMutex);
+        for (const auto& input : inputs)
+        {
+            std::cout << input;
+        }
+        std::cout << std::flush;
     }
 };
 
@@ -84,7 +109,7 @@ public:
     MarqueeDisplay(int headerLines, const std::string& message, int delay)
         : headerLines(headerLines), message(message), delay(delay), isRunning(true) {}
 
-    void start(InputHandler& inputHandler)
+    void start()
     {
         HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
         CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -115,8 +140,6 @@ public:
             {
                 dy = -dy;
             }
-
-            DisplayFooter(console, consoleHeight, inputHandler);
         }
     }
 
@@ -130,19 +153,6 @@ private:
     std::string message;
     int delay;
     std::atomic<bool> isRunning;
-
-    void DisplayFooter(HANDLE console, int consoleHeight, InputHandler& inputHandler)
-    {
-        COORD footerPos = { 0, static_cast<SHORT>(consoleHeight - 1) };
-        SetConsoleCursorPosition(console, footerPos);
-        std::cout << "Enter a command for MARQUEE_CONSOLE: ";
-
-        auto inputs = inputHandler.getInputs();
-        for (const auto& input : inputs)
-        {
-            std::cout << input;
-        }
-    }
 };
 
 int main()
@@ -157,7 +167,7 @@ int main()
     inputHandler.start();
 
     MarqueeDisplay marquee(headerLines, message, delay);
-    marquee.start(inputHandler);
+    marquee.start();
 
     inputHandler.stop();
     return 0;
