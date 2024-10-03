@@ -22,9 +22,24 @@ void ClearConsoleBelowHeader(int headerLines)
 }
 
 std::vector<char> inputs{};
+std::atomic<bool> isRunning{ true };
+
+void captureInputs()
+{
+	while (isRunning)
+    {
+	    // Check for user input
+        if (_kbhit())
+        {
+            char key = _getch();
+            inputs.push_back(key);
+		}
+
+    }
+}
 
 // Function to display the diagonal bouncing marquee
-void DisplayDiagonalMarquee(const std::string& message, int delay, int headerLines)
+void displayDiagonalMarquee(const std::string& message, int delay, int headerLines)
 {
     HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -66,19 +81,11 @@ void DisplayDiagonalMarquee(const std::string& message, int delay, int headerLin
         {
 			std::cout << input;
         }
-
-        // Check for user input
-        if (_kbhit())
-        {
-            char key = _getch();
-            inputs.push_back(key);
-			std::cout << key;
-		}
     }
 }
 
 // Function to display the header
-void DisplayHeader()
+void displayHeader()
 {
     std::cout << "*****************************************\n";
     std::cout << "* Displaying a marquee console!         *\n";
@@ -91,6 +98,9 @@ int main()
     std::string message = "Hello world in marquee!";
     int delay = 100;            // Delay in milliseconds
     int headerLines = 3;        // Number of lines in the header
+
+    std::thread inputThread(captureInputs);
+    inputThread.join();
 
     DisplayDiagonalMarquee(message, delay, headerLines);
 
